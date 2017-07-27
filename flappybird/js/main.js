@@ -4,7 +4,10 @@
 var mainState = {
     mainComponents: {
         startButton: '',
-        previousScore: ''
+        previousScore: '',
+        jumpSound: '',
+        deathSound: '',
+        wtfSound: '',
     },
 
     inputButtons: {
@@ -15,6 +18,7 @@ var mainState = {
         previousScore: 0,
         currentScore: 0,
         gameStarted: false,
+        isDeath: false,
     },
     preload: function () {
         // This function will be executed at the beginning
@@ -24,6 +28,9 @@ var mainState = {
         game.load.image('bird', 'assets/michiel.png');
         game.load.image('pipe', 'assets/fristi.jpg');
         game.load.image('buttonStart', 'assets/button-start.png')
+        game.load.audio('jump', 'assets/jump.wav');
+        game.load.audio('death', 'assets/dood.wav');
+        game.load.audio('wtf', 'assets/WTF.wav');
     },
 
     update: function () {
@@ -34,23 +41,37 @@ var mainState = {
             // If the bird is out of the screen (too high or too low)
             // Call the 'restartGame' function
             if (this.bird.y < 0 || this.bird.y > 490) {
+                if (!this.states.isDeath) {
+                    this.mainComponents.wtfSound.play();
+                }
                 this.restartGame();
             }
-            game.physics.arcade.overlap(this.bird, this.pipes, this.restartGame, null, this);
+            //game.physics.arcade.overlap(this.bird, this.pipes, this.restartGame, null, this);
+            game.physics.arcade.overlap(this.bird, this.pipes, this.hitPipe, null, this);  
+            
+            if (this.bird.angle < 20) {
+                 this.bird.angle += 1; 
+            }
+               
         }
     },
     create: function () {
         // This function is called after the preload function     
         // Here we set up the game, display sprites, etc. 
+        
+        this.mainComponents.jumpSound = game.add.audio('jump', 0.3);
+        this.mainComponents.deathSound = game.add.audio('death');
+        this.mainComponents.wtfSound = game.add.audio('wtf');
 
         this.states.gameStarted = false;
+        this.states.isDeath = false;
 
         // Change the background color of the game to blue
         game.stage.backgroundColor = '#71c5cf';
-        
-        console.log(this.states.previousScore);
+
+            console.log(this.states.previousScore)
         if (this.states.previousScore > 0) {
-            this.mainComponents.previousScore = game.add.text(20, 20, "Your previous score: " + this.states.previousScore, {
+            this.mainComponents.previousScore = game.add.text(20, 20, "Vorige score: " + this.states.previousScore, {
                 font: "30px Arial",
                 fill: "#ffffff"
             });
@@ -94,6 +115,8 @@ var mainState = {
 
         // Add gravity to the bird to make it fall
         this.bird.body.gravity.y = 1000;
+        
+        this.bird.anchor.setTo(-0.2, 0.5); 
 
         this.inputButtons.spaceKey.onDown.remove(this.startgame, this);
         this.inputButtons.spaceKey.onDown.add(this.jump, this);
@@ -121,9 +144,51 @@ var mainState = {
 
     // Make the bird jump 
     jump: function () {
+        
+        if (this.bird.alive == false) {
+            return;
+        }  
+        
         // Add a vertical velocity to the bird
         this.bird.body.velocity.y = -350;
+        
+        // Create an animation on the bird
+        var animation = game.add.tween(this.bird);
+        // Change the angle of the bird to -20° in 100 milliseconds
+        animation.to({angle: -20}, 100);
+        // And start the animation
+        animation.start();
+        
+        this.mainComponents.jumpSound.play(); 
+        
+        // game.add.tween(this.bird).to({angle: -20}, 100).start(); 
     },
+    
+    hitPipe: function() {
+        // If the bird has already hit a pipe, do nothing
+        // It means the bird is already falling off the screen
+        if (this.bird.alive == false) {
+             return;
+        }
+        
+        if (!this.mainComponents.deathSound.isPlaying) {
+          this.mainComponents.deathSound.play();   
+        }
+           
+
+        // Set the alive property of the bird to false
+        this.bird.alive = false;
+
+        // Prevent new pipes from appearing
+        game.time.events.remove(this.timer);
+
+        // Go through all the pipes, and stop their movement
+        this.pipes.forEach(function(p){
+            p.body.velocity.x = 0;
+        }, this);
+        
+        this.states.isDeath = true;
+    }, 
 
     addOnePipe: function (x, y) {
         // Create a pipe at the position x and y
