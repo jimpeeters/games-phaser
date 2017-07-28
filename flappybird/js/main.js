@@ -1,9 +1,12 @@
 // Tutorial: http://www.lessmilk.com/tutorial/flappy-bird-phaser-1
 
 // Create our 'main' state that will contain the game
+var startText, bar;
+var screenWidth = 400;
+var screenHeight = 490;
+
 var mainState = {
     mainComponents: {
-        startButton: '',
         previousScore: '',
         jumpSound: '',
         deathSound: '',
@@ -12,6 +15,7 @@ var mainState = {
 
     inputButtons: {
         spaceKey: '',
+        onTap: '',
     },
 
     states: {
@@ -27,7 +31,8 @@ var mainState = {
         // Load the bird sprite
         game.load.image('bird', 'assets/michiel.png');
         game.load.image('pipe', 'assets/fristi.jpg');
-        game.load.image('buttonStart', 'assets/button-start.png')
+        game.load.image('buttonStart', 'assets/button-start.png');
+        game.load.image('fullScreenIcon', 'assets/fullscreen-icon.png');
         game.load.audio('jump', 'assets/jump.wav');
         game.load.audio('death', 'assets/dood.wav');
         game.load.audio('wtf', 'assets/WTF.wav');
@@ -40,7 +45,7 @@ var mainState = {
         if (this.states.gameStarted) {
             // If the bird is out of the screen (too high or too low)
             // Call the 'restartGame' function
-            if (this.bird.y < 0 || this.bird.y > 490) {
+            if (this.bird.y < 0 || this.bird.y > screenHeight) {
                 if (!this.states.isDeath) {
                     this.mainComponents.wtfSound.play();
                 }
@@ -69,7 +74,6 @@ var mainState = {
         // Change the background color of the game to blue
         game.stage.backgroundColor = '#71c5cf';
 
-            console.log(this.states.previousScore)
         if (this.states.previousScore > 0) {
             this.mainComponents.previousScore = game.add.text(20, 20, "Vorige score: " + this.states.previousScore, {
                 font: "30px Arial",
@@ -77,23 +81,48 @@ var mainState = {
             });
         }
         
-        this.mainComponents.startButton = game.add.button(game.world.centerX - 112, game.world.centerY - 35, 'buttonStart', this.startgame, this);
+        this.toggleBeginText(true);
+        
+        // FullscreenButton
+        game.add.button(game.world.width - 90 - 5, 5, 'fullScreenIcon', this.toggleFullscreen, this);
 
         // initialize the keys
         this.inputButtons.spaceKey = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
+        this.inputButtons.onTap = game.input.onTap;
 
 
+        this.inputButtons.onTap.remove(this.jump, this);
+        this.inputButtons.onTap.add(this.startgame, this);
         this.inputButtons.spaceKey.onDown.remove(this.jump, this);
         this.inputButtons.spaceKey.onDown.add(this.startgame, this);
     },
+    
+    toggleBeginText: function(toggleOn) {
+        if(toggleOn) {
+            bar = game.add.graphics();
+            bar.beginFill(0x000000, 0.2);
+            bar.drawRect(0, 100, screenHeight, 100);
+
+            var style = { font: "bold 32px Arial", fill: "#fff", boundsAlignH: "center", boundsAlignV: "middle" };
+
+            //  The Text is positioned at 0, 100
+            startText = game.add.text(0, 0, "Tap to start", style);
+            startText.setShadow(3, 3, 'rgba(0,0,0,0.5)', 2);
+
+            startText.setTextBounds(0, 100, screenHeight - 100, 100);
+        } else {
+            startText.kill();
+            bar.kill();
+        }
+    },
 
     startgame: function () {
+        
+        this.toggleBeginText(false);
 
         if (this.states.previousScore > 0) {
             this.mainComponents.previousScore.kill();
         }
-        
-        this.mainComponents.startButton.kill();
         
         
         this.states.previousScore = 0;
@@ -120,6 +149,8 @@ var mainState = {
 
         this.inputButtons.spaceKey.onDown.remove(this.startgame, this);
         this.inputButtons.spaceKey.onDown.add(this.jump, this);
+        this.inputButtons.onTap.remove(this.startgame, this);
+        this.inputButtons.onTap.add(this.jump, this);
 
         // Create an empty group
         this.pipes = game.add.group();
@@ -133,6 +164,12 @@ var mainState = {
             font: "30px Arial",
             fill: "#ffffff"
         });
+    },
+    
+    toggleFullscreen: function() {
+        // Stretch to fill
+        game.scale.fullScreenScaleMode = Phaser.ScaleManager.EXACT_FIT;
+        game.scale.startFullScreen(false);
     },
     
     // Restart the game
@@ -217,7 +254,7 @@ var mainState = {
         // With one big hole at position 'hole' and 'hole + 1'
         for (var i = 0; i < 8; i++) {
             if (i != hole && i != hole + 1) {
-                this.addOnePipe(400, i * 60 + 10);
+                this.addOnePipe(screenWidth, i * 60 + 10);
             }
         }
 
@@ -228,7 +265,8 @@ var mainState = {
 };
 
 // Initialize Phaser, and create a 400px by 490px game
-var game = new Phaser.Game(400, 490);
+var game = new Phaser.Game(screenWidth, screenHeight);
+
 
 // Add the 'mainState' and call it 'main'
 game.state.add('main', mainState);
